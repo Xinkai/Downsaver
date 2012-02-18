@@ -9,9 +9,9 @@ NOTE: Downsaver is still under alpha development stage. Users without programmin
 How to Build
 ============
 
-Downsaver for Firefox takes advantage of Mozilla Add-on SDK. Information about Mozilla Add-on SDK can be found 'here'_.
+Downsaver for Firefox takes advantage of Mozilla Add-on SDK. Information about Mozilla Add-on SDK can be found `here`_.
 
-.. _'here': https://addons.mozilla.org/en-US/developers/docs/sdk/latest/
+.. _`here`: https://addons.mozilla.org/en-US/developers/docs/sdk/latest/
 
 
 License Information
