@@ -1,0 +1,10 @@
+{
+    "name": "dwarf", 
+    "license": "MPL 1.1/GPL 2.0/LGPL 2.1", 
+    "author": "Xinkai Chen",
+	"contributors": [],
+    "version": "0.1 Alpha", 
+    "fullName": "D.W.A.R.F", 
+    "id": "dwarf@dwarf.net", 
+    "description": "Preseve online resources to local disk."
+}
