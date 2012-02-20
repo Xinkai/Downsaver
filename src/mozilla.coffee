@@ -28,6 +28,8 @@ ExtensionNames =
     "wav": "Wave Audio"
     "wave": "Wave Audio"
     "mov": "QuickTime Video"
+    "qt": "QuickTime Video"
+    "mpe": "MPEG Media"
     "mpg": "MPEG Media"
     "mpeg": "MPEG Media"
     "wma": "Windows Media Audio"
@@ -45,15 +47,29 @@ ExtensionNames =
     "m4a": "M4A Audio"
     "ape": "APE Audio"
     "wmv": "Windows Media Video"
-    "au": "Mulaw Audio"
+    "au": "BASIC Audio"
+    "snd": "BASIC Audio"
     "midi": "MIDI Audio"
     "mid": "MIDI Audio"
+    "aiff": "AIFF Audio"
+    "aif": "AIFF Audio"
+    "aifc": "AIFF Audio"
+    "vdo": "VDO Streaming Video"
+    "vivo": "VIVO Streaming Video"
+    "viv": "VIVO Streaming Video"
+    "movie": "SGI Movieplayer Format"
+    "voc": "Voice Audio"
 
 ContentTypes =
     "audio/basic": "au"
     # "audio/L24": ["???", "24bit Linear PCM audio at 8-48kHz, 1-N channels"]
     "audio/mp4": "mp4"
     "audio/mpeg": "mp3"
+    "audio/x-mpeg": "mp3"
+    "audio/x-pn-realaudio": "ra"
+    "audio/x-voice": "voc"
+    "audio/x-wav": "wav"
+    "audio/wav": "wav"
     "audio/ogg": "ogg"
     "audio/vorbis": "ogg"
     "audio/x-ms-wma": "wma"
@@ -62,9 +78,12 @@ ContentTypes =
     "audio/vnd.wave": "wav"
     "audio/webm": "webm"
 
-    # TODO: MIDI
+    "application/x-midi": "midi"
+    "audio/midi": "midi"
+    "audio/x-aiff": "aiff"
 
     "video/mpeg": "mpeg"
+    "video/msvideo": "avi"
     "video/mp4": "mp4"
     "video/ogg": "ogg"
     "video/quicktime": "mov"
@@ -74,6 +93,10 @@ ContentTypes =
     "video/x-flv": "flv"
     "video/3gpp": "3gp"
     "video/x-m4v": "m4v"
+    "video/vdo": "vdo"
+    "video/vivo": "vivo"
+    "video/x-sgi-movie": "movie"
+
 
 DownloadParts = {}
 getPartialNameFor = (filenameStem) ->
@@ -256,3 +279,5 @@ exports.onUnload = (reason) ->
 
 exports.extractExtensionName = extractExtensionName
 exports.isDownsaverOnNow = isDownsaverOnNow
+exports.ContentTypes = ContentTypes
+exports.ExtensionNames = ExtensionNames

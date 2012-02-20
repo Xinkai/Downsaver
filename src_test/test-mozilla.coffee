@@ -5,11 +5,10 @@ SIMPLE_PREFS = require('simple-prefs')
 PRIVATE_BROWSING = require('private-browsing')
 TIMERS = require('timers')
 
-exports.test_test_run = (test) ->
-    test.pass("Unit test running!")
 
 exports.test_id = (test) ->
     test.assert(require("self").id.length > 0)
+
 
 exports.test_extract_extension_name = (test) ->
     tests =
@@ -30,9 +29,9 @@ exports.test_extract_extension_name = (test) ->
         "http://youtu.be": null
         "http://youtu.be//": null
 
+    for testURI, extName of tests
+        test.assertStrictEqual(main.extractExtensionName(testURI), extName)
 
-    for testURL, extName of tests
-        test.assertStrictEqual(main.extractExtensionName(testURL), extName)
 
 exports.test_downsaver_on_off = (test) ->
     testWithSwitches = (isOff, workOnPrivateBrowsing, expects) -> # 'off' is a reserved keyword in coffee
@@ -63,3 +62,7 @@ exports.test_downsaver_on_off = (test) ->
     )
     test.waitUntilDone(5000)
 
+
+exports.test_every_contentType_has_extension = (test) ->
+    for contentType, extName of main.ContentTypes
+        test.assert(extName of main.ExtensionNames, "Extension Name '#{extName}' is not in ExtensionNames.")
