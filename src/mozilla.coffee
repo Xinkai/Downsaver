@@ -34,19 +34,19 @@ ExtensionNames =
     "m4v": "M4V Video"
     "3gp": "3GP Video"
     "flv": "Flash Video"
-    "asf": ""
-    "f4v": ""
-    "vob": ""
-    "flac": ""
-    "aac": ""
-    "mmf": ""
-    "amr": ""
-    "m4a": ""
-    "ape": ""
+    "asf": "ASF Video"
+    "f4v": "F4V"
+    "vob": "VOB"
+    "flac": "FLAC Audio"
+    "aac": "AAC Audio"
+    "mmf": "MMF"
+    "amr": "AMR"
+    "m4a": "M4A Audio"
+    "ape": "APE Audio"
     "wmv": "Windows Media Video"
     "au": "Mulaw Audio"
-
-
+    "midi": "MIDI Audio"
+    "mid": "MIDI Audio"
 
 ContentTypes =
     "audio/basic": "au"
@@ -61,6 +61,8 @@ ContentTypes =
     "audio/vnd.wave": "wav"
     "audio/webm": "webm"
 
+    # TODO: MIDI
+
     "video/mpeg": "mpeg"
     "video/mp4": "mp4"
     "video/ogg": "ogg"
@@ -69,7 +71,6 @@ ContentTypes =
     "video/x-ms-wmv": "wmv"
     "video/flv": "flv"
     "video/x-flv": "flv"
-
     "video/3gpp": "3gp"
     "video/x-m4v": "m4v"
 
@@ -109,26 +110,66 @@ getSaveTo = () ->
 
 saveTo = getSaveTo()
 
-extractExtensionName = (URL) ->
-    URL = URL.toLowerCase()
+extractExtensionName = (URI) ->
+    URI = URI.toLowerCase()
 
     # Cut off "?", "#"
-    questionMarkIndex= URL.indexOf("?")
-    hashMarkIndex = URL.indexOf("#")
-
+    questionMarkIndex= URI.indexOf("?")
     if questionMarkIndex >= 0
-        URL = URL.substr(0, questionMarkIndex)
+        URI = URI.substr(0, questionMarkIndex)
 
+    hashMarkIndex = URI.indexOf("#")
     if hashMarkIndex >= 0
-        URL = URL.substr(0, hashMarkIndex)
+        URI = URI.substr(0, hashMarkIndex)
 
-    fractions = URL.split("/")
+    fractions = URI.split("/")
     if fractions.length > 3 # ["http:", "", "youtube.com", ....]
         extensionNameFractions = fractions.pop().split(".")
         if extensionNameFractions.length > 1 # http://test.com/demo
             return extensionNameFractions.pop()
 
     return null
+
+addHttpObserver = (aSubject, data) ->
+    aSubject.QueryInterface(Ci.nsIHttpChannel)
+    # TODO: Try Extension Name First
+
+    # Try Content Type Second
+    try
+        content_type = aSubject.getResponseHeader("Content-Type")
+        if content_type of ContentTypes
+            aSubject.QueryInterface(Ci.nsITraceableChannel)
+
+            loadContext = undefined
+            try
+                loadContext =
+                    aSubject.QueryInterface(Ci.nsIChannel)
+                            .notificationCallbacks
+                            .getInterface(Ci.nsILoadContext)
+            catch err2
+                console.log("Downsaver: ", err2)
+                try
+                    loadContext =
+                        aSubject.loadGroup.notificationCallbacks
+                                .getInterface(Ci.nsILoadContext)
+                catch err3
+                    console.log("Downsaver: ", err3)
+                    loadContext = null
+
+            filename = loadContext.associatedWindow.document.title
+                                    .replace(/[\\/:*?"<>|]/g, " ").split(" ").join(" ")
+
+            listener = new StreamListener(filename, ContentTypes[content_type])
+
+            listener.oldListener = aSubject.setNewListener(listener)
+
+    catch err
+        if err.name is "NS_ERROR_NOT_AVAILABLE"
+
+        else
+            console.error("Downsaver: ", err.message)
+
+    # TODO: Try Custom Filters
 
 
 exports.main = (options, callbacks) ->
@@ -142,18 +183,18 @@ exports.main = (options, callbacks) ->
 
     StreamListener.prototype =
         onStartRequest: (aRequest, aContext) ->
-            console.log("About to download")
+            console.log("Downsaver: about to download")
             @oldListener.onStartRequest(aRequest, aContext)
 
         onDataAvailable: (aRequest, aContext, aInputStream, aOffset, aCount) ->
-            console.log("Data is available.")
+            console.log("Downsaver: data is available")
 
             binaryInputStream = Cc["@mozilla.org/binaryinputstream;1"]
-                            .createInstance(Ci.nsIBinaryInputStream)
+                                    .createInstance(Ci.nsIBinaryInputStream)
             storageStream = Cc["@mozilla.org/storagestream;1"]
-                            .createInstance(Ci.nsIStorageStream)
+                                    .createInstance(Ci.nsIStorageStream)
             binaryOutputStream = Cc["@mozilla.org/binaryoutputstream;1"]
-                            .createInstance(Ci.nsIBinaryOutputStream)
+                                    .createInstance(Ci.nsIBinaryOutputStream)
 
             if @file is undefined
                 filename = "#{getPartialNameFor(@filenameStem)}.#{@extName}"
@@ -172,70 +213,29 @@ exports.main = (options, callbacks) ->
 
         onStopRequest: (aRequest, aContext, aStatusCode) ->
             if aStatusCode is Cr.NS_OK
-                console.log("Request ended")
+                console.log("Downsaver: request ended")
             else
-                console.error("Request Failed: ", aStatusCode)
+                console.error("Downsaver: request failed - ", aStatusCode)
 
             if @file
                 @file.close()
             @oldListener.onStopRequest(aRequest, aContext, aStatusCode)
 
 
-
-
-    OBSERVER.add("http-on-examine-response", (aSubject, data) ->
-        aSubject.QueryInterface(Ci.nsIHttpChannel)
-        # TODO: Try Extension Name First
-
-        # TODO: Try Content Type Second
-        try
-            content_type = aSubject.getResponseHeader("Content-Type")
-            if content_type of ContentTypes
-                aSubject.QueryInterface(Ci.nsITraceableChannel)
-
-                loadContext = undefined
-                try
-                    loadContext =
-                        aSubject.QueryInterface(Ci.nsIChannel)
-                                .notificationCallbacks
-                                .getInterface(Ci.nsILoadContext)
-                catch ex
-                    console.log(ex)
-                    try
-                        loadContext =
-                            aSubject.loadGroup.notificationCallbacks
-                                    .getInterface(Ci.nsILoadContext)
-                    catch ex
-                        console.log(ex)
-                        loadContext = null
-
-                filename = loadContext.associatedWindow.document.title
-                        .replace(/[\\/:*?"<>|]/g, " ").split(" ").join(" ")
-
-                listener = new StreamListener(filename, ContentTypes[content_type])
-
-                listener.oldListener = aSubject.setNewListener(listener)
-
-        catch err
-            if err.name is "NS_ERROR_NOT_AVAILABLE"
-
-            else
-                console.error("Downsaver: ", err.message)
-
-        # TODO: Try Custom Filters
-    )
+    OBSERVER.add("http-on-examine-response", addHttpObserver)
 
 exports.onUnload = (reason) ->
     switch reason
         when "uninstall"
-            ;
+            console.log("Downsaver uninstalled")
         when "disable"
-            ;
+            console.log("Downsaver disabled")
+            OBSERVER.remove("http-on-examine-response", addHttpObserver);
         when "shutdown"
-            ;
+            console.log("Downsaver shutdown")
         when "upgrade"
-            ;
+            console.log("Downsaver upgraded")
         when "downgrade"
-            ;
+            console.log("Downsaver downgraded")
 
 exports.extractExtensionName = extractExtensionName
