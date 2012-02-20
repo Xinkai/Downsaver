@@ -1,5 +1,5 @@
 #
-# Downsaver makes a browser automatically save video/audio/image or any other online resources to the disk while they being loaded.
+# Downsaver saves whatever media a browser loads while it is being loaded.
 # Author: Xinkai Chen
 
 "use strict"
@@ -9,6 +9,7 @@ OBSERVER = require("observer-service")
 FILE = require("file")
 RUNTIME = require("runtime")
 SIMPLE_PREFS = require('simple-prefs')
+PRIVATE_BROWSING = require('private-browsing')
 {_} = require("underscore.js")
 
 ExtensionNames =
@@ -110,6 +111,15 @@ getSaveTo = () ->
 
 saveTo = getSaveTo()
 
+isDownsaverOnNow = () ->
+    if SIMPLE_PREFS.prefs.off
+        return false
+    else
+        if (not SIMPLE_PREFS.prefs.workOnPrivateBrowsing) and PRIVATE_BROWSING.isActive
+            return false
+        return true
+
+
 extractExtensionName = (URI) ->
     URI = URI.toLowerCase()
 
@@ -132,6 +142,12 @@ extractExtensionName = (URI) ->
 
 addHttpObserver = (aSubject, data) ->
     aSubject.QueryInterface(Ci.nsIHttpChannel)
+
+    if not isDownsaverOnNow()
+        return
+
+    # TODO: check simple-prefs: saveByDefault
+
     # TODO: Try Extension Name First
 
     # Try Content Type Second
@@ -239,3 +255,4 @@ exports.onUnload = (reason) ->
             console.log("Downsaver downgraded")
 
 exports.extractExtensionName = extractExtensionName
+exports.isDownsaverOnNow = isDownsaverOnNow

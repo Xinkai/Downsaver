@@ -6,29 +6,29 @@
     "version": "Alpha",
     "fullName": "Downsaver",
     "id": "downsaver@downsaver.com",
-    "description": "It makes a browser automatically save video/audio/image or any other online resources to the disk while they being loaded.",
+    "description": "It saves whatever media a browser loads while it is being loaded.",
     "preferences": [
         {
             "name": "off",
-            "title": "Temporarily off (not working yet)",
+            "title": "Temporarily off",
             "type": "bool",
             "value": false
         },
         {
             "name": "saveTo",
-            "title": "Where to save the files",
+            "title": "Where to save media",
             "type": "directory",
             "value": ""
         },
         {
-            "name": "workOnPrivate",
-            "title": "Effective on Private Browsing (not working yet)",
+            "name": "workOnPrivateBrowsing",
+            "title": "Effective on Private Browsing as well",
             "type": "bool",
             "value": false
         },
         {
             "name": "saveByDefault",
-            "title": "Saving resources by default (not working yet)",
+            "title": "Always save media unless said otherwise (not working yet)",
             "type": "bool",
             "value": true
         }
