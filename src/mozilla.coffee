@@ -6,44 +6,72 @@
 
 OBSERVER = require("observer-service")
 {Cc, Ci, Cu, Cr} = require("chrome")
-
 FILE = require("file")
-STORAGE = require("simple-storage")
 RUNTIME = require("runtime")
+SIMPLE_PREFS = require('simple-prefs')
 {_} = require("underscore.js")
-SELF = require("self")
 
-SELF.name = "Downsaver"
-SELF.version = "Alpha"
+ExtensionNames =
+    "ogg": "Vorbis/OGG Media"
+    "oga": "Vorbis/OGG Media"
+    "mp1": "MP1 Audio"
+    "mp2": "MP2 Audio"
+    "mp3": "MP3 Audio"
+    "mp4": "MP4 Media"
+    "avi": "AVI Video"
+    "mkv": "MKV Video"
+    "rmvb": "RMVB Video"
+    "rm": "RM Video"
+    "ra": "Real Audio"
+    "webm": "WebM Media"
+    "wav": "Wave Audio"
+    "wave": "Wave Audio"
+    "mov": "QuickTime Video"
+    "mpg": "MPEG Media"
+    "mpeg": "MPEG Media"
+    "wma": "Windows Media Audio"
+    "wax": "Windows Media Audio Redirector"
+    "m4v": "M4V Video"
+    "3gp": "3GP Video"
+    "flv": "Flash Video"
+    "asf": ""
+    "f4v": ""
+    "vob": ""
+    "flac": ""
+    "aac": ""
+    "mmf": ""
+    "amr": ""
+    "m4a": ""
+    "ape": ""
+    "wmv": "Windows Media Video"
+    "au": "Mulaw Audio"
+
+
 
 ContentTypes =
-    "audio/basic": ["???", "Mulaw Audio"]
-    "audio/L24": ["???", "24bit Linear PCM audio at 8-48kHz, 1-N channels"]
-    "audio/mp4": ["mp4", "MP4 Audio"]
-    "audio/mpeg": ["mp3", "MP3/MPEG Audio"]
-    "audio/ogg": ["ogg", "OGG Audio"]
-    "audio/vorbis": ["???", "Vorbis Audio"]
-    "audio/x-ms-wma": ["wma", "Windows Media Audio"]
-    "audio/x-ms-wax": ["wax", "Windows Media Audio Redirector"]
-    "audio/vnd.rn-realaudio": ["ra", "Real Audio"]
-    "audio/vnd.wave": ["wav", "Wave Audio"]
-    "audio/webm": ["webm", "WebM Audio"]
+    "audio/basic": "au"
+    # "audio/L24": ["???", "24bit Linear PCM audio at 8-48kHz, 1-N channels"]
+    "audio/mp4": "mp4"
+    "audio/mpeg": "mp3"
+    "audio/ogg": "ogg"
+    "audio/vorbis": "ogg"
+    "audio/x-ms-wma": "wma"
+    "audio/x-ms-wax": "wax"
+    "audio/vnd.rn-realaudio": "ra"
+    "audio/vnd.wave": "wav"
+    "audio/webm": "webm"
 
-    "video/mpeg": ["mpeg", "MPEG Video"]
-    "video/mp4": ["mp4", "MP4 Video"]
-    "video/ogg": ["ogg", "OGG Video"]
-    "video/quicktime": ["mov", "QuickTime Video"]
-    "video/webm": ["webm", "WebM Video"]
-    "video/x-ms-wmv": ["wmv", "Windows Media Video"]
-    "video/flv": ["flv", "Flash Video"]
+    "video/mpeg": "mpeg"
+    "video/mp4": "mp4"
+    "video/ogg": "ogg"
+    "video/quicktime": "mov"
+    "video/webm": "webm"
+    "video/x-ms-wmv": "wmv"
+    "video/flv": "flv"
+    "video/x-flv": "flv"
 
-    "video/x-flv": ["flv", "Flash Video"]
-    "video/3gpp": ["3gp", "3GP Video"]
-    "video/x-m4v": ["m4v", "M4V Video"]
-
-CT =
-    "EXT": 0
-    "Description": 1
+    "video/3gpp": "3gp"
+    "video/x-m4v": "m4v"
 
 DownloadParts = {}
 getPartialNameFor = (filenameStem) ->
@@ -53,51 +81,58 @@ getPartialNameFor = (filenameStem) ->
         DownloadParts[filenameStem] = 1
     return if DownloadParts[filenameStem] is 1 then filenameStem else "#{filenameStem} (#{DownloadParts[filenameStem]})"
 
-# otherwise can be either a default value or a function that yields default.
-# If key is not found, then this default value will also be saved.
 
-getOption = (key, otherwise) ->
-    value = STORAGE.storage[key]
-    if value is undefined
-        switch typeof(otherwise)
-            when "undefined"
-                console.error("Downsaver: option #{key} is not present, and default value is not given.")
-
-            when "function"
-                value = otherwise()
-                STORAGE.storage[key] = value
-
-            else
-                value = otherwise
-                STORAGE.storage[key] = value
-    return value
-
-slash = if RUNTIME.OS is "WINNT" then "\\" else "/"
+PLATFORM_SLASH = if RUNTIME.OS is "WINNT" then "\\" else "/"
 
 osJoin = (dir, file) ->
-    return dir + slash + file
+    return dir + PLATFORM_SLASH + file
 
+getSaveTo = () ->
+    saveTo_fromPrefs = SIMPLE_PREFS.prefs.saveTo
+    if not saveTo_fromPrefs
+        FolderPicker = Cc["@mozilla.org/filepicker;1"]
+                            .createInstance(Ci.nsIFilePicker)
+        wm = Cc["@mozilla.org/appshell/window-mediator;1"]
+                            .getService(Ci.nsIWindowMediator)
+        browserWindow = wm.getMostRecentWindow("navigator:browser")
 
-saveTo = getOption("saveTo", () ->
-    FolderPicker = Cc["@mozilla.org/filepicker;1"]
-                        .createInstance(Ci.nsIFilePicker)
-    wm = Cc["@mozilla.org/appshell/window-mediator;1"]
-                        .getService(Ci.nsIWindowMediator)
-    browserWindow = wm.getMostRecentWindow("navigator:browser")
+        FolderPicker.init(browserWindow, "Where to save the files",
+                                    Ci.nsIFilePicker.modeGetFolder)
 
-    FolderPicker.init(browserWindow, "Where do you want the files to be saved?",
-                Ci.nsIFilePicker.modeGetFolder)
-
-    result = FolderPicker.show()
-    if result is Ci.nsIFilePicker.returnOK
-        return FolderPicker.file.path
+        result = FolderPicker.show()
+        if result is Ci.nsIFilePicker.returnOK
+            SIMPLE_PREFS.prefs.saveTo = FolderPicker.file.path
+        return getSaveTo()
     else
-        return
-)
+        # TODO: verifry the validness of the saveTo path
+        return saveTo_fromPrefs
+
+saveTo = getSaveTo()
+
+extractExtensionName = (URL) ->
+    URL = URL.toLowerCase()
+
+    # Cut off "?", "#"
+    questionMarkIndex= URL.indexOf("?")
+    hashMarkIndex = URL.indexOf("#")
+
+    if questionMarkIndex >= 0
+        URL = URL.substr(0, questionMarkIndex)
+
+    if hashMarkIndex >= 0
+        URL = URL.substr(0, hashMarkIndex)
+
+    fractions = URL.split("/")
+    if fractions.length > 3 # ["http:", "", "youtube.com", ....]
+        extensionNameFractions = fractions.pop().split(".")
+        if extensionNameFractions.length > 1 # http://test.com/demo
+            return extensionNameFractions.pop()
+
+    return null
 
 
-exports.main = () ->
-    console.log("Downsaver Loads...")
+exports.main = (options, callbacks) ->
+    console.log("Downsaver Loads, reason: ", options.loadReason)
 
     StreamListener = (filenameStem, extName) ->
         @filenameStem = filenameStem
@@ -147,10 +182,12 @@ exports.main = () ->
 
 
 
-    # Try Content Type First
+
     OBSERVER.add("http-on-examine-response", (aSubject, data) ->
         aSubject.QueryInterface(Ci.nsIHttpChannel)
+        # TODO: Try Extension Name First
 
+        # TODO: Try Content Type Second
         try
             content_type = aSubject.getResponseHeader("Content-Type")
             if content_type of ContentTypes
@@ -175,7 +212,7 @@ exports.main = () ->
                 filename = loadContext.associatedWindow.document.title
                         .replace(/[\\/:*?"<>|]/g, " ").split(" ").join(" ")
 
-                listener = new StreamListener(filename, ContentTypes[content_type][CT.EXT])
+                listener = new StreamListener(filename, ContentTypes[content_type])
 
                 listener.oldListener = aSubject.setNewListener(listener)
 
@@ -185,5 +222,20 @@ exports.main = () ->
             else
                 console.error("Downsaver: ", err.message)
 
-    # TODO: Try Extension Name Second
+        # TODO: Try Custom Filters
     )
+
+exports.onUnload = (reason) ->
+    switch reason
+        when "uninstall"
+            ;
+        when "disable"
+            ;
+        when "shutdown"
+            ;
+        when "upgrade"
+            ;
+        when "downgrade"
+            ;
+
+exports.extractExtensionName = extractExtensionName
