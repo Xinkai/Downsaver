@@ -59,6 +59,7 @@ ExtensionNames =
     "viv": "VIVO Streaming Video"
     "movie": "SGI Movieplayer Format"
     "voc": "Voice Audio"
+    "hlv": "Unknown Format Video"
 
 ContentTypes =
     "audio/basic": "au"
@@ -137,10 +138,9 @@ saveTo = getSaveTo()
 isDownsaverOnNow = () ->
     if SIMPLE_PREFS.prefs.off
         return false
-    else
-        if (not SIMPLE_PREFS.prefs.workOnPrivateBrowsing) and PRIVATE_BROWSING.isActive
-            return false
-        return true
+    if (not SIMPLE_PREFS.prefs.workOnPrivateBrowsing) and PRIVATE_BROWSING.isActive
+        return false
+    return true
 
 
 extractExtensionName = (URI) ->
@@ -177,6 +177,7 @@ addHttpObserver = (aSubject, data) ->
     try
         content_type = aSubject.getResponseHeader("Content-Type")
         if content_type of ContentTypes
+            extensionName = ContentTypes[content_type]
             aSubject.QueryInterface(Ci.nsITraceableChannel)
 
             loadContext = undefined
@@ -192,13 +193,13 @@ addHttpObserver = (aSubject, data) ->
                         aSubject.loadGroup.notificationCallbacks
                                 .getInterface(Ci.nsILoadContext)
                 catch err3
-                    console.log("Downsaver: ", err3)
+                    console.error("Downsaver: ", err3)
                     loadContext = null
 
             filename = loadContext.associatedWindow.document.title
                                     .replace(/[\\/:*?"<>|]/g, " ").split(" ").join(" ")
 
-            listener = new StreamListener(filename, ContentTypes[content_type])
+            listener = new StreamListener(filename, extensionName)
 
             listener.oldListener = aSubject.setNewListener(listener)
 
@@ -210,58 +211,54 @@ addHttpObserver = (aSubject, data) ->
 
     # TODO: Try Custom Filters
 
+class StreamListener
+    constructor: (@filenameStem, @extName) ->
+        @file = undefined
+
+    onStartRequest: (aRequest, aContext) ->
+        console.log("Downsaver: about to download")
+        @oldListener.onStartRequest(aRequest, aContext)
+
+    onDataAvailable: (aRequest, aContext, aInputStream, aOffset, aCount) ->
+        console.log("Downsaver: data is available")
+
+        binaryInputStream = Cc["@mozilla.org/binaryinputstream;1"]
+                                .createInstance(Ci.nsIBinaryInputStream)
+        storageStream = Cc["@mozilla.org/storagestream;1"]
+                                .createInstance(Ci.nsIStorageStream)
+        binaryOutputStream = Cc["@mozilla.org/binaryoutputstream;1"]
+                                .createInstance(Ci.nsIBinaryOutputStream)
+
+        if @file is undefined
+            filename = "#{getPartialNameFor(@filenameStem)}.#{@extName}"
+            @file = FILE.open(osJoin(saveTo, filename), "wb")
+
+        binaryInputStream.setInputStream(aInputStream)
+        storageStream.init(8192, aCount, null)
+        binaryOutputStream.setOutputStream(storageStream.getOutputStream(0))
+
+        # Copy received data as they come.
+        data = binaryInputStream.readBytes(aCount)
+        binaryOutputStream.writeBytes(data, aCount)
+        @file.write(data)
+        @oldListener.onDataAvailable(aRequest, aContext,
+            storageStream.newInputStream(0), aOffset, aCount)
+
+    onStopRequest: (aRequest, aContext, aStatusCode) ->
+        if aStatusCode is Cr.NS_OK
+            console.log("Downsaver: request ended")
+        else
+            console.error("Downsaver: request failed - ", aStatusCode)
+
+        if @file
+            @file.close()
+        @oldListener.onStopRequest(aRequest, aContext, aStatusCode)
+
 
 exports.main = (options, callbacks) ->
     console.log("Downsaver Loads, reason: ", options.loadReason)
-
-    StreamListener = (filenameStem, extName) ->
-        @filenameStem = filenameStem
-        @extName = extName
-        @file = undefined
-
-
-    StreamListener.prototype =
-        onStartRequest: (aRequest, aContext) ->
-            console.log("Downsaver: about to download")
-            @oldListener.onStartRequest(aRequest, aContext)
-
-        onDataAvailable: (aRequest, aContext, aInputStream, aOffset, aCount) ->
-            console.log("Downsaver: data is available")
-
-            binaryInputStream = Cc["@mozilla.org/binaryinputstream;1"]
-                                    .createInstance(Ci.nsIBinaryInputStream)
-            storageStream = Cc["@mozilla.org/storagestream;1"]
-                                    .createInstance(Ci.nsIStorageStream)
-            binaryOutputStream = Cc["@mozilla.org/binaryoutputstream;1"]
-                                    .createInstance(Ci.nsIBinaryOutputStream)
-
-            if @file is undefined
-                filename = "#{getPartialNameFor(@filenameStem)}.#{@extName}"
-                @file = FILE.open(osJoin(saveTo, filename), "wb")
-
-            binaryInputStream.setInputStream(aInputStream)
-            storageStream.init(8192, aCount, null)
-            binaryOutputStream.setOutputStream(storageStream.getOutputStream(0))
-
-            # Copy received data as they come.
-            data = binaryInputStream.readBytes(aCount)
-            binaryOutputStream.writeBytes(data, aCount)
-            @file.write(data)
-            @oldListener.onDataAvailable(aRequest, aContext,
-                    storageStream.newInputStream(0), aOffset, aCount)
-
-        onStopRequest: (aRequest, aContext, aStatusCode) ->
-            if aStatusCode is Cr.NS_OK
-                console.log("Downsaver: request ended")
-            else
-                console.error("Downsaver: request failed - ", aStatusCode)
-
-            if @file
-                @file.close()
-            @oldListener.onStopRequest(aRequest, aContext, aStatusCode)
-
-
     OBSERVER.add("http-on-examine-response", addHttpObserver)
+
 
 exports.onUnload = (reason) ->
     switch reason
@@ -269,7 +266,7 @@ exports.onUnload = (reason) ->
             console.log("Downsaver uninstalled")
         when "disable"
             console.log("Downsaver disabled")
-            OBSERVER.remove("http-on-examine-response", addHttpObserver);
+            OBSERVER.remove("http-on-examine-response", addHttpObserver)
         when "shutdown"
             console.log("Downsaver shutdown")
         when "upgrade"
