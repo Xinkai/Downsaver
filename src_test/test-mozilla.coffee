@@ -1,43 +1,16 @@
 "use strict"
 
-main = require("mozilla")
+MOZILLA = require("mozilla")
 SIMPLE_PREFS = require('simple-prefs')
 PRIVATE_BROWSING = require('private-browsing')
 TIMERS = require('timers')
-
-
-exports.test_id = (test) ->
-    test.assert(require("self").id.length > 0)
-
-
-exports.test_extract_extension_name = (test) ->
-    tests =
-        "http://youtube.com:80/": null
-        "https://youtube.com/watch/player.swf?id=38472": "swf"
-        "https://youtube.com/watch/player.swf#id=38472.wmv": "swf"
-        "https://youtube.com/watch/player.swf?id=38472&deer=horse": "swf"
-        "http://235.34.52.64/cache/6.mp3": "mp3"
-        "http://235.34.52.64/cache/6.4.MP3": "mp3"
-        "http://235.34.52.64": null
-        "http://235.34.52.64/": null
-        "http://235.34.52.64/demo": null
-        "http://235.34.52.64/demo.webm": "webm"
-        "http://235.34.52.64:12345/demo.webm": "webm"
-        "http://235.34.52.64/demo.webm/": null
-        "http://235.34.52.64:12345/demo.webm/": null
-        "http://youtu.be/": null
-        "http://youtu.be": null
-        "http://youtu.be//": null
-
-    for testURI, extName of tests
-        test.assertStrictEqual(main.extractExtensionName(testURI), extName)
 
 
 exports.test_downsaver_on_off = (test) ->
     testWithSwitches = (isOff, workOnPrivateBrowsing, expects) -> # 'off' is a reserved keyword in coffee
         SIMPLE_PREFS.prefs.off = isOff
         SIMPLE_PREFS.prefs.workOnPrivateBrowsing = workOnPrivateBrowsing
-        test.assertStrictEqual(main.isDownsaverOnNow(), expects)
+        test.assertStrictEqual(MOZILLA.isDownsaverOnNow(), expects)
 
     test.assertStrictEqual(PRIVATE_BROWSING.isActive, false)
     # Private-browsing off
@@ -57,12 +30,9 @@ exports.test_downsaver_on_off = (test) ->
             testWithSwitches(true, false, false)
             testWithSwitches(false, true, true)
             testWithSwitches(false, false, false)
+            PRIVATE_BROWSING.deactivate()
             test.done()
         0
     )
     test.waitUntilDone(5000)
 
-
-exports.test_every_contentType_has_extension = (test) ->
-    for contentType, extName of main.ContentTypes
-        test.assert(extName of main.ExtensionNames, "Extension Name '#{extName}' is not in ExtensionNames.")
