@@ -27,26 +27,32 @@ task('clean', 'remove built files', (options) ->
 
     removeFile('./test/test-mozilla.js')
     removeFile('./test/test-media-rules.js')
-    removeFile('./test/test-testenv.js')
+
+    removeFile('./data/panel.js')
 )
 
 task('mozilla', 'build xpi for Mozilla', (options) ->
     invoke('clean')
     exec('coffee --compile --bare --output lib/ src/')
+    exec('coffee --compile --bare --output data/ src_data/')
 )
 
 task('mozilla:test', 'unit test for Mozilla', (options) ->
     invoke('mozilla')
-    exec('coffee --compile --bare --output test/ src_test/')
+    exec('coffee --compile --bare --output test/ src_test/', () ->
+        exec('cfx test -g testenv')
+    )
 )
 
 task('mozilla:testenv', 'unit-test with a clean-profiled Firefox open', (options) ->
     invoke('mozilla')
-    exec('coffee --bare --output test/ src_test/test-testenv.coffee', () ->
-        exec('cfx test -g testenv')
+    require('timers').setTimeout( # workaround, it seems cake doesn't have a invokeSync
+        () ->
+            exec('cfx run -g testenv')
+        500
     )
-
 )
+
 task('chromium', 'build crx for Chromium-based', (options) ->
     console.error('Building failed: Chromium is not supported for now.')
 )

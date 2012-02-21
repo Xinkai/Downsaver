@@ -11,6 +11,9 @@ RUNTIME = require("runtime")
 SIMPLE_PREFS = require('simple-prefs')
 PRIVATE_BROWSING = require('private-browsing')
 MEDIA_RULES = require('media-rules.js')
+SELF = require("self")
+PANEL = require("panel")
+WIDGET = require("widget")
 {_} = require("underscore.js")
 
 
@@ -28,6 +31,16 @@ PLATFORM_SLASH = if RUNTIME.OS is "WINNT" then "\\" else "/"
 
 osJoin = (dir, file) ->
     return dir + PLATFORM_SLASH + file
+
+fileLauncherClass = Cc["@mozilla.org/file/local;1"]
+
+launchFile = (filePath) ->
+    fileLauncher = fileLauncherClass.createInstance(Ci.nsILocalFile)
+    fileLauncher.initWithPath(filePath)
+    fileLauncher.launch()
+
+
+
 
 getSaveTo = () ->
     saveTo_fromPrefs = SIMPLE_PREFS.prefs.saveTo
@@ -155,6 +168,22 @@ class StreamListener
 exports.main = (options, callbacks) ->
     console.log("Downsaver Loads, reason: ", options.loadReason)
     OBSERVER.add("http-on-examine-response", httpObserver)
+
+    panel = PANEL.Panel(
+        width: 400
+        height: 280
+        contentURL: SELF.data.url("panel.html")
+        contentScriptFile: [SELF.data.url("jquery.js"), SELF.data.url("panel.js")]
+        contentScriptWhen: "start"
+    )
+    widget = WIDGET.Widget(
+        id: 'downsaver_widget'
+        label: 'Downsaver'
+        content: "This is a test..."
+        panel: panel
+    )
+    widget.onClick = () -> # workaround for https://bugzil.la/638142
+        widget.panel.show()
 
 
 exports.onUnload = (reason) ->
