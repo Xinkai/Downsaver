@@ -114,8 +114,8 @@ httpObserver = (aSubject, data) ->
             listener.oldListener = aSubject.setNewListener(listener)
 
     catch err
-        if err.code is Cr.NS_ERROR_NOT_AVAILABLE
-
+        if err.result is Cr.NS_ERROR_NOT_AVAILABLE
+            # If content type is not in the header, then skip
         else
             console.error("Downsaver: ", err.message)
 
@@ -130,7 +130,7 @@ class StreamListener
         @oldListener.onStartRequest(aRequest, aContext)
 
     onDataAvailable: (aRequest, aContext, aInputStream, aOffset, aCount) ->
-        console.log("Downsaver: data is available")
+        console.log("Downsaver: data is available. aCount is: #{aCount}, aOffset: #{aOffset}")
 
         binaryInputStream = Cc["@mozilla.org/binaryinputstream;1"]
                                 .createInstance(Ci.nsIBinaryInputStream)
@@ -151,6 +151,8 @@ class StreamListener
         data = binaryInputStream.readBytes(aCount)
         binaryOutputStream.writeBytes(data, aCount)
         @file.write(data)
+        # TODO: if the tab is closed when a streamListener is running,
+        # a NS_ERROR_FAILURE is thrown. Catch it.
         @oldListener.onDataAvailable(aRequest, aContext,
             storageStream.newInputStream(0), aOffset, aCount)
 
@@ -179,7 +181,7 @@ exports.main = (options, callbacks) ->
     widget = WIDGET.Widget(
         id: 'downsaver_widget'
         label: 'Downsaver'
-        content: "This is a test..."
+        content: "0"
         panel: panel
     )
     widget.onClick = () -> # workaround for https://bugzil.la/638142
