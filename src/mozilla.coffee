@@ -114,7 +114,7 @@ httpObserver = (aSubject, data) ->
             listener.oldListener = aSubject.setNewListener(listener)
 
     catch err
-        if err.name is "NS_ERROR_NOT_AVAILABLE"
+        if err.code is Cr.NS_ERROR_NOT_AVAILABLE
 
         else
             console.error("Downsaver: ", err.message)

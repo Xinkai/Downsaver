@@ -2,6 +2,7 @@
 
 fs = require('fs')
 __exec = require('child_process').exec
+TIMERS = require('timers')
 
 removeFile = (path) ->
     try
@@ -35,6 +36,11 @@ task('mozilla', 'build xpi for Mozilla', (options) ->
     invoke('clean')
     exec('coffee --compile --bare --output lib/ src/')
     exec('coffee --compile --bare --output data/ src_data/')
+    TIMERS.setTimeout( # workaround, it seems cake doesn't have a invokeSync
+        () ->
+            exec('cfx xpi')
+        500
+    )
 )
 
 task('mozilla:test', 'unit test for Mozilla', (options) ->
@@ -46,7 +52,7 @@ task('mozilla:test', 'unit test for Mozilla', (options) ->
 
 task('mozilla:testenv', 'unit-test with a clean-profiled Firefox open', (options) ->
     invoke('mozilla')
-    require('timers').setTimeout( # workaround, it seems cake doesn't have a invokeSync
+    TIMERS.setTimeout( # workaround, it seems cake doesn't have a invokeSync
         () ->
             exec('cfx run -g testenv')
         500
