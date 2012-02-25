@@ -25,11 +25,13 @@ task('clean', 'remove built files', (options) ->
 
     removeFile('./lib/mozilla.js')
     removeFile('./lib/media-rules.js')
+    removeFile('./lib/management.js')
 
     removeFile('./test/test-mozilla.js')
     removeFile('./test/test-media-rules.js')
 
     removeFile('./data/panel.js')
+    removeFile('./data/widget.js')
 )
 
 task('mozilla', 'build xpi for Mozilla', (options) ->

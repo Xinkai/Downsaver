@@ -23,39 +23,41 @@ li {
 li:last-child {
     border-bottom: 0;
 }
+li > div.btn {
+    float: right;
+}
+li > div.info {
+    clear: both;
+}
+li > div.btn > a {
+    display: none;
+}
+li.saved > div.btn > a.saved,
+li.saving > div.btn > a.saving,
+li.discard > div.btn > a.discard {
+    display: inline;
+}
 </style>
 <header>
     <button>Show Medias in Current Tab</button>
     <button>Show Medias in All Tabs</button>
 </header>
-<div style="clear:both; height: 200px; overflow-y:scroll;">
-    <ul style="margin: 0; padding: 0">
-        <li>
-            <span>袁腾飞《妙语讲解朝鲜战争》_1 - YouTube</span>
-            <a href="javascript: void(0)">Save</a>
-            <a href="javascript: void(0)">Save As...</a>
-        </li>
-        <li>
-            <span>袁腾飞《妙语讲解朝鲜战争》_2 - YouTube</span>
-            <a href="javascript: void(0)">Open</a>
-            <a href="javascript: void(0)">Remove</a>
-        </li>
-        <li>
-            <span>袁腾飞《妙语讲解朝鲜战争》_3 - YouTube</span>
-            <a href="javascript: void(0)">Saving</a>
-            <a href="javascript: void(0)">Discard</a>
-        </li>
-        <li>
-            <span>袁腾飞《妙语讲解朝鲜战争》_4 - YouTube</span>
-            <a href="javascript: void(0)">Open</a>
-            <a href="javascript: void(0)">Remove</a>
-        </li>
-        <li>
-            <span>袁腾飞《妙语讲解朝鲜战争》_5 - YouTube</span>
-            <a href="javascript: void(0)">Save</a>
-            <a href="javascript: void(0)">Save As...</a>
-        </li>
-    </ul>
-</div>
+<ul id="itemsContainer" style="clear:both; height: 200px; overflow-y:scroll; margin: 0; padding: 0">
+</ul>
 <footer>
 </footer>
+<script id="newItemTemplate" type="text/template">
+    <li class="{{status}}"><!-- status can be 'discard', 'saved', 'saving'-->
+        <span>{1{filenameStem}1}</span>
+        <div class="btn">
+            <a class="discard save" href="javascript: void(0)">Save</a>
+            <a class="discard saveas" href="javascript: void(0)">Save As...</a>
+            <a class="saved open" href="javascript: void(0)">Open</a>
+            <a class="saved open" href="javascript: void(0)">Remove</a>
+            <a class="saving" href="javascript: void(0)">Discard</a>
+        </div>
+        <div class="info">
+            From URL: <a href="{originURL}">{originTitle}</a>
+        </div>
+    </li>
+</script>

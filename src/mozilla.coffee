@@ -14,23 +14,14 @@ MEDIA_RULES = require('media-rules.js')
 SELF = require("self")
 PANEL = require("panel")
 WIDGET = require("widget")
-{_} = require("underscore.js")
-
-
-
-DownloadParts = {}
-getPartialNameFor = (filenameStem) ->
-    if filenameStem of DownloadParts
-        DownloadParts[filenameStem] += 1
-    else
-        DownloadParts[filenameStem] = 1
-    return if DownloadParts[filenameStem] is 1 then filenameStem else "#{filenameStem} (#{DownloadParts[filenameStem]})"
-
 
 PLATFORM_SLASH = if RUNTIME.OS is "WINNT" then "\\" else "/"
 
-osJoin = (dir, file) ->
-    return dir + PLATFORM_SLASH + file
+osJoin = (dir, file, ext = null) ->
+    result = dir + PLATFORM_SLASH + file
+    if ext
+        result += "." + ext
+    return result
 
 fileLauncherClass = Cc["@mozilla.org/file/local;1"]
 
@@ -79,6 +70,7 @@ httpObserver = (aSubject, data) ->
     if not isDownsaverOnNow()
         return
 
+    rule_matched = false
     # TODO: check simple-prefs: saveByDefault
 
     # TODO: Try Extension Name First
@@ -88,42 +80,53 @@ httpObserver = (aSubject, data) ->
         content_type = aSubject.getResponseHeader("Content-Type")
         if content_type of MEDIA_RULES.ContentTypes
             extensionName = MEDIA_RULES.ContentTypes[content_type]
-            aSubject.QueryInterface(Ci.nsITraceableChannel)
-
-            loadContext = undefined
-            try
-                loadContext =
-                    aSubject.QueryInterface(Ci.nsIChannel)
-                            .notificationCallbacks
-                            .getInterface(Ci.nsILoadContext)
-            catch err2
-                console.log("Downsaver: ", err2)
-                try
-                    loadContext =
-                        aSubject.loadGroup.notificationCallbacks
-                                .getInterface(Ci.nsILoadContext)
-                catch err3
-                    console.error("Downsaver: ", err3)
-                    loadContext = null
-
-            filename = loadContext.associatedWindow.document.title
-                                    .replace(/[\\/:*?"<>|]/g, " ").split(" ").join(" ")
-
-            listener = new StreamListener(filename, extensionName)
-
-            listener.oldListener = aSubject.setNewListener(listener)
+            rule_matched = true
 
     catch err
         if err.result is Cr.NS_ERROR_NOT_AVAILABLE
             # If content type is not in the header, then skip
         else
-            console.error("Downsaver: ", err.message)
+            console.error("Downsaver - getting content type: ", err.message)
+
+    if rule_matched
+        listener = new StreamListener(aSubject, extensionName)
+
+        if listener.result is true
+            listener.oldListener = aSubject.setNewListener(listener)
 
     # TODO: Try Custom Filters
 
+isFileExistsByFilename = (filename) ->
+    return require('file').exists(path)
+
 class StreamListener
-    constructor: (@filenameStem, @extName) ->
-        @file = undefined
+    constructor: (aSubject, extName) ->
+        aSubject.QueryInterface(Ci.nsITraceableChannel)
+        loadContext = undefined
+        try
+            loadContext =
+                aSubject.QueryInterface(Ci.nsIChannel)
+                .notificationCallbacks
+                .getInterface(Ci.nsILoadContext)
+        catch err2
+            console.log("Downsaver: ", err2)
+            try
+                loadContext =
+                    aSubject.loadGroup.notificationCallbacks
+                    .getInterface(Ci.nsILoadContext)
+            catch err3
+                loadContext = null
+
+        if loadContext
+            @result = true
+            result = require('management').createTask(loadContext, extName)
+            @task = result.task
+            @file = result.file
+
+        else
+            @result = false
+            console.error("loadContext is null")
+
 
     onStartRequest: (aRequest, aContext) ->
         console.log("Downsaver: about to download")
@@ -138,10 +141,6 @@ class StreamListener
                                 .createInstance(Ci.nsIStorageStream)
         binaryOutputStream = Cc["@mozilla.org/binaryoutputstream;1"]
                                 .createInstance(Ci.nsIBinaryOutputStream)
-
-        if @file is undefined
-            filename = "#{getPartialNameFor(@filenameStem)}.#{@extName}"
-            @file = FILE.open(osJoin(saveTo, filename), "wb")
 
         binaryInputStream.setInputStream(aInputStream)
         storageStream.init(8192, aCount, null)
@@ -175,17 +174,28 @@ exports.main = (options, callbacks) ->
         width: 400
         height: 280
         contentURL: SELF.data.url("panel.html")
-        contentScriptFile: [SELF.data.url("jquery.js"), SELF.data.url("panel.js")]
-        contentScriptWhen: "start"
+        contentScriptFile: [
+            SELF.data.url("jquery.js")
+            SELF.data.url("underscore.js")
+            SELF.data.url("panel.js")
+        ]
     )
     widget = WIDGET.Widget(
         id: 'downsaver_widget'
         label: 'Downsaver'
-        content: "0"
+        contentURL: SELF.data.url("widget.html")
+        contentScriptFile: [
+            SELF.data.url("jquery.js")
+            SELF.data.url("widget.js")
+        ]
         panel: panel
     )
-    widget.onClick = () -> # workaround for https://bugzil.la/638142
-        widget.panel.show()
+
+    # redirect events
+    widget.port.on('newItem', (detail) ->
+        panel.port.emit('newItem', detail)
+    )
+
 
 
 exports.onUnload = (reason) ->
@@ -203,3 +213,5 @@ exports.onUnload = (reason) ->
             console.log("Downsaver downgraded")
 
 exports.isDownsaverOnNow = isDownsaverOnNow
+exports.saveTo = saveTo
+exports.PLATFORM_SLASH = PLATFORM_SLASH
