@@ -96,9 +96,6 @@ httpObserver = (aSubject, data) ->
 
     # TODO: Try Custom Filters
 
-isFileExistsByFilename = (filename) ->
-    return require('file').exists(path)
-
 class StreamListener
     constructor: (aSubject, extName) ->
         aSubject.QueryInterface(Ci.nsITraceableChannel)
